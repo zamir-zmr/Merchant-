@@ -483,6 +483,7 @@ db.ref('orders/').on('value', (snap) => {
     document.getElementById('s3').textContent = delivered; document.getElementById('s4').textContent = custs.size;
 });
 
+
 function renderOrders() {
     const div = document.getElementById('ordersList');
     const entries = Object.entries(allOrders)
@@ -499,13 +500,11 @@ function renderOrders() {
         const statusLabel = status==='delivered' ? '✅ Delivered' : status==='pickup' ? '🟡 Pickup Done' : '🟢 New';
         const cardClass = 'order-card' + (status==='delivered' ? ' delivered' : status==='pickup' ? ' pickup' : '');
 
-        // Delivery type chip (from customer choice)
         const dtype = o.deliveryType || 'delivery';
         const dtypeChip = dtype === 'pickup'
             ? `<span class="dtype-chip dtype-pickup">🛍️ Pickup</span>`
             : `<span class="dtype-chip dtype-delivery">🚚 Delivery</span>`;
 
-        // Done timestamp
         let stampHTML = '';
         if ((status==='delivered'||status==='pickup') && o.statusDate) {
             const cls = status==='delivered' ? 'delivered' : 'pickup';
@@ -514,20 +513,30 @@ function renderOrders() {
             stampHTML = `<div class="done-stamp ${cls}">${ico} ${verb} on <strong>${o.statusDate}</strong> at <strong>${o.statusTime}</strong></div>`;
         }
 
-        // --- UPDATED ACTION BUTTON LOGIC ---
-        // Yahan hum check kar rahe hain ki customer ko kya chahiye
+        // --- MERGED ACTION BUTTON LOGIC (Fixed for Dialer) ---
         let actionBtns = '';
         if (status === 'new') {
-            if (dtype === 'pickup') {
-                // Agar customer ko pickup chahiye, to sirf pickup ka button dikhao
-                actionBtns = `<button class="btn-pickup-action" style="width:100%" onclick="updateOrderStatus('${key}','pickup')">🟡 Mark Pickup Done</button>`;
-            } else {
-                // Agar customer ko delivery chahiye, to sirf delivery ka button dikhao
-                actionBtns = `<button class="btn-deliver" style="width:100%" onclick="updateOrderStatus('${key}','delivered')">✅ Mark Delivered</button>`;
-            }
+            const nextStatus = dtype === 'pickup' ? 'pickup' : 'delivered';
+            const btnText = dtype === 'pickup' ? '🟡 Mark Pickup Done' : '✅ Mark Delivered';
+            const btnClass = dtype === 'pickup' ? 'btn-pickup-action' : 'btn-deliver';
+
+            actionBtns = `
+                <div style="display: flex; gap: 10px; width: 100%; margin-top: 10px;">
+                    <button type="button" 
+                            style="flex: 1; background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;"
+                            onclick="window.location.href='tel:${o.customerPhone}'">
+                        📞 Call
+                    </button>
+
+                    <button class="${btnClass}" 
+                            style="flex: 2; margin: 0; padding: 12px; border-radius: 10px;" 
+                            onclick="updateOrderStatus('${key}','${nextStatus}')">
+                        ${btnText}
+                    </button>
+                </div>`;
         } else {
-            // Jab order complete ho jaye (History)
-            actionBtns = `<button class="btn-done-label">${statusLabel}</button>`;
+            // Completed orders ke liye button
+            actionBtns = `<button class="btn-done-label" style="width:100%;">${statusLabel}</button>`;
         }
 
         html += `<div class="${cardClass}">
@@ -549,6 +558,7 @@ function renderOrders() {
     });
     div.innerHTML = html;
 }
+
 
 function filterOrders(filter, el) {
     activeFilter = filter;
