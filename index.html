@@ -468,32 +468,19 @@ db.ref('products/').on('value', (snap) => {
 // ---- UPDATE ORDER STATUS (with timestamp) ----
 function updateOrderStatus(key, status) {
     const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true });
-    const dateStr = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
-    db.ref('orders/' + key).update({ status, statusTime: timeStr, statusDate: dateStr, statusTimestamp: Date.now() }).then(() => {
-        showToast(status === 'delivered' ? '✅ Marked as Delivered' : '🟡 Marked as Pickup Done');
-    });
+    const time = `${now.toLocaleDateString('en-IN')} ${now.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})}`;
+    db.ref('orders/' + key).update({ status, completedAt: time }).then(() => showToast('Order Updated! ✅'));
 }
 
-// ---- ORDERS LISTENER ----
 db.ref('orders/').on('value', (snap) => {
-    allOrders = {};
-    snap.forEach(c => allOrders[c.key] = c.val());
-    const total = snap.numChildren();
-    document.getElementById('ordersCount').textContent = total;
-    document.getElementById('tabOCount').textContent = total;
-    document.getElementById('s2').textContent = total;
-    const customers = new Set();
-    let done = 0;
-    snap.forEach(c => {
-        const o = c.val();
-        customers.add(o.customerName);
-        if (o.status === 'delivered' || o.status === 'pickup') done++;
-    });
-    document.getElementById('s3').textContent = done;
-    document.getElementById('s4').textContent = customers.size;
+    allOrders = snap.val() || {};
     renderOrders();
-    renderActivity();
+    // Update Stats
+    const total = Object.keys(allOrders).length;
+    document.getElementById('ordersCount').textContent = total; document.getElementById('tabOCount').textContent = total; document.getElementById('s2').textContent = total;
+    let delivered = 0; const custs = new Set();
+    Object.values(allOrders).forEach(o => { if(o.status==='delivered') delivered++; custs.add(o.customerName); });
+    document.getElementById('s3').textContent = delivered; document.getElementById('s4').textContent = custs.size;
 });
 
 function renderOrders() {
