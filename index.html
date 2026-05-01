@@ -466,11 +466,34 @@ db.ref('products/').on('value', (snap) => {
 });
 
 // ---- UPDATE ORDER STATUS (with timestamp) ----
+
+// ---- MERCHANT APP: Modified updateOrderStatus for AM/PM ----
 function updateOrderStatus(key, status) {
     const now = new Date();
-    const time = `${now.toLocaleDateString('en-IN')} ${now.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})}`;
-    db.ref('orders/' + key).update({ status, completedAt: time }).then(() => showToast('Order Updated! ✅'));
+    
+    // Isse time "02:30 PM" ke format mein aayega
+    const timeStr = now.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true 
+    });
+    
+    const dateStr = now.toLocaleDateString('en-IN', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+    });
+
+    db.ref('orders/' + key).update({ 
+        status: status, 
+        statusTime: timeStr, 
+        statusDate: dateStr, 
+        statusTimestamp: Date.now() 
+    }).then(() => {
+        showToast(status === 'delivered' ? '✅ Marked as Delivered' : '🟡 Marked as Pickup Done');
+    });
 }
+
 
 db.ref('orders/').on('value', (snap) => {
     allOrders = snap.val() || {};
@@ -514,11 +537,21 @@ function renderOrders() {
             stampHTML = `<div class="done-stamp ${cls}">${ico} ${verb} on <strong>${o.statusDate}</strong> at <strong>${o.statusTime}</strong></div>`;
         }
 
-        // Action buttons
-        const actionBtns = status === 'new'
-            ? `<button class="btn-deliver" onclick="updateOrderStatus('${key}','delivered')">✅ Mark Delivered</button>
-               <button class="btn-pickup-action" onclick="updateOrderStatus('${key}','pickup')">🟡 Pickup Done</button>`
-            : `<button class="btn-done-label">${statusLabel}</button>`;
+        // --- UPDATED ACTION BUTTON LOGIC ---
+        // Yahan hum check kar rahe hain ki customer ko kya chahiye
+        let actionBtns = '';
+        if (status === 'new') {
+            if (dtype === 'pickup') {
+                // Agar customer ko pickup chahiye, to sirf pickup ka button dikhao
+                actionBtns = `<button class="btn-pickup-action" style="width:100%" onclick="updateOrderStatus('${key}','pickup')">🟡 Mark Pickup Done</button>`;
+            } else {
+                // Agar customer ko delivery chahiye, to sirf delivery ka button dikhao
+                actionBtns = `<button class="btn-deliver" style="width:100%" onclick="updateOrderStatus('${key}','delivered')">✅ Mark Delivered</button>`;
+            }
+        } else {
+            // Jab order complete ho jaye (History)
+            actionBtns = `<button class="btn-done-label">${statusLabel}</button>`;
+        }
 
         html += `<div class="${cardClass}">
             <div class="order-header">
