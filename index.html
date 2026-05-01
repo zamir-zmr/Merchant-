@@ -385,31 +385,49 @@ function addProduct() {
 }
 
 // ---- DELETE ----
+
 function deleteProduct(key) {
-    if (confirm('Delete this product?')) {
-        db.ref('products/' + key).remove();
-        showToast('Product removed 🗑️');
+    if (confirm('Are you sure you want to delete this product? 🗑️')) {
+        db.ref('products/' + key).remove()
+            .then(() => {
+                showToast('Product deleted successfully! ✅');
+            })
+            .catch((error) => {
+                showToast('Error deleting product ❌', true);
+            });
     }
 }
 
 // ---- OPEN EDIT ----
+
 function openEdit(key) {
-    const p = allProducts[key];
-    document.getElementById('editKey').value = key;
-    document.getElementById('editName').value = p.name;
-    document.getElementById('editPrice').value = p.price;
-    document.getElementById('editCategory').value = p.category || '';
-    document.getElementById('editDesc').value = p.desc || '';
-    document.getElementById('editFile').value = '';
-    editImg = p.image || '';
-    if (p.image) {
-        setPhotoPreview('edit', p.image);
-    } else {
-        removePhoto('edit');
-        editImg = '';
-    }
-    document.getElementById('editModal').classList.add('open');
+    // Firebase se direct data uthana taaki error na aaye
+    db.ref('products/' + key).once('value').then((snap) => {
+        const p = snap.val();
+        if (!p) return;
+
+        document.getElementById('editKey').value = key;
+        document.getElementById('editName').value = p.name;
+        document.getElementById('editPrice').value = p.price;
+        document.getElementById('editCategory').value = p.category || '';
+        document.getElementById('editDesc').value = p.desc || '';
+        document.getElementById('editFile').value = '';
+        
+        editImg = p.image || '';
+
+        if (p.image) {
+            setPhotoPreview('edit', p.image);
+        } else {
+            // Agar removePhoto function hai to chalao, warna preview hide karo
+            const preview = document.getElementById('editPreview');
+            if(preview) preview.style.display = 'none';
+        }
+        
+        document.getElementById('editModal').classList.add('open');
+    });
 }
+
+
 function closeEdit() {
     document.getElementById('editModal').classList.remove('open');
     editImg = null;
@@ -445,6 +463,8 @@ db.ref('products/').on('value', (snap) => {
     const list = document.getElementById('productList');
     if (!snap.exists()) { list.innerHTML = '<div class="empty-state"><div class="e-icon">📭</div>No products yet. Add above!</div>'; return; }
     let html = '';
+    
+    
     snap.forEach(child => {
         const p = child.val(), key = child.key;
         const thumb = p.image
@@ -625,5 +645,9 @@ function showToast(msg, error=false) {
 
 document.getElementById('editModal').addEventListener('click', function(e){ if(e.target===this) closeEdit(); });
 </script>
+
+
+
+
 </body>
 </html>
