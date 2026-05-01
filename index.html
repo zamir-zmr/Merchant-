@@ -1,3 +1,4 @@
+<!-- START OF FILE index.html (Admin Panel) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -88,6 +89,15 @@
         .img-upload-area .upload-icon { font-size: 28px; }
         .img-upload-area .upload-text { font-size: 12px; color: var(--muted); font-weight: 600; }
         .img-upload-area .upload-sub { font-size: 10px; color: var(--muted); }
+        
+        /* NEW: Photo Remove Button */
+        .remove-photo-btn {
+            position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.7); 
+            color: white; width: 24px; height: 24px; border-radius: 50%; 
+            display: none; align-items: center; justify-content: center; 
+            cursor: pointer; z-index: 10; border: 1px solid rgba(255,255,255,0.3);
+            font-size: 12px; font-weight: bold;
+        }
 
         /* BUTTONS */
         .btn { width: 100%; padding: 12px; border-radius: 9px; border: none; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 7px; }
@@ -200,6 +210,7 @@
                 <div class="img-upload-area" id="uploadArea">
                     <input type="file" accept="image/*" id="prodImageFile" onchange="previewImage(event, 'uploadPreview', 'uploadArea')">
                     <img id="uploadPreview" style="display:none">
+                    <div class="remove-photo-btn" id="removeAddBtn" onclick="removePhoto('uploadPreview', 'uploadArea', 'add')">✕</div>
                     <span class="upload-icon">📷</span>
                     <span class="upload-text">Tap to choose photo</span>
                     <span class="upload-sub">From gallery or camera</span>
@@ -282,6 +293,7 @@
             <div class="img-upload-area" id="editUploadArea">
                 <input type="file" accept="image/*" id="editImageFile" onchange="previewImage(event, 'editPreview', 'editUploadArea')">
                 <img id="editPreview" style="display:none">
+                <div class="remove-photo-btn" id="removeEditBtn" onclick="removePhoto('editPreview', 'editUploadArea', 'edit')">✕</div>
                 <span class="upload-icon" id="editUploadIcon">📷</span>
                 <span class="upload-text" id="editUploadText">Change photo</span>
             </div>
@@ -340,10 +352,38 @@ function previewImage(event, previewId, areaId) {
         preview.style.display = 'block';
         const area = document.getElementById(areaId);
         area.querySelectorAll('.upload-icon,.upload-text,.upload-sub').forEach(el => el.style.display = 'none');
-        if (previewId === 'uploadPreview') newImageBase64 = b64;
-        if (previewId === 'editPreview') editImageBase64 = b64;
+        
+        // Show remove button
+        if (previewId === 'uploadPreview') {
+            newImageBase64 = b64;
+            document.getElementById('removeAddBtn').style.display = 'flex';
+        }
+        if (previewId === 'editPreview') {
+            editImageBase64 = b64;
+            document.getElementById('removeEditBtn').style.display = 'flex';
+        }
     };
     reader.readAsDataURL(file);
+}
+
+// ---- NEW: REMOVE PHOTO ----
+function removePhoto(previewId, areaId, type) {
+    event.stopPropagation();
+    const preview = document.getElementById(previewId);
+    preview.src = '';
+    preview.style.display = 'none';
+    const area = document.getElementById(areaId);
+    area.querySelectorAll('.upload-icon,.upload-text,.upload-sub').forEach(el => el.style.display = '');
+    
+    if (type === 'add') {
+        newImageBase64 = null;
+        document.getElementById('prodImageFile').value = '';
+        document.getElementById('removeAddBtn').style.display = 'none';
+    } else {
+        editImageBase64 = '';
+        document.getElementById('editImageFile').value = '';
+        document.getElementById('removeEditBtn').style.display = 'none';
+    }
 }
 
 // ---- ADD PRODUCT ----
@@ -362,6 +402,7 @@ function addProduct() {
         document.getElementById('prodDesc').value = '';
         document.getElementById('prodImageFile').value = '';
         document.getElementById('uploadPreview').style.display = 'none';
+        document.getElementById('removeAddBtn').style.display = 'none';
         document.getElementById('uploadArea').querySelectorAll('.upload-icon,.upload-text,.upload-sub').forEach(el => el.style.display = '');
         newImageBase64 = null;
     });
@@ -385,13 +426,17 @@ function openEdit(key) {
     document.getElementById('editDesc').value = p.desc || '';
     editImageBase64 = p.image || null;
     const prev = document.getElementById('editPreview');
+    const remBtn = document.getElementById('removeEditBtn');
+    
     if (p.image) {
         prev.src = p.image;
         prev.style.display = 'block';
+        remBtn.style.display = 'flex';
         document.getElementById('editUploadIcon').style.display = 'none';
         document.getElementById('editUploadText').style.display = 'none';
     } else {
         prev.style.display = 'none';
+        remBtn.style.display = 'none';
         document.getElementById('editUploadIcon').style.display = '';
         document.getElementById('editUploadText').style.display = '';
     }
@@ -408,7 +453,7 @@ function saveEdit() {
     const desc = document.getElementById('editDesc').value.trim();
     if (!name || !price) { showToast('Name and Price required ❗', true); return; }
     const update = { name, price, category, desc, updatedAt: Date.now() };
-    if (editImageBase64 !== null) update.image = editImageBase64;
+    update.image = editImageBase64 || ''; // This handles removal if base64 was cleared
     db.ref('products/' + key).update(update).then(() => {
         closeEdit();
         showToast('Product updated! ✅');
@@ -441,7 +486,13 @@ db.ref('products/').on('value', (snap) => {
 
 // ---- ORDER STATUS ----
 function updateOrderStatus(key, status) {
-    db.ref('orders/' + key).update({ status }).then(() => {
+    const now = new Date();
+    const formattedStatusTime = `${now.toLocaleDateString('en-IN')} ${now.toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})}`;
+    
+    db.ref('orders/' + key).update({ 
+        status,
+        completedAt: formattedStatusTime // This will be shown on customer app
+    }).then(() => {
         const labels = { delivered: 'Marked as Delivered ✅', pickup: 'Marked as Pickup Done 🟡' };
         showToast(labels[status] || 'Updated');
     });
@@ -470,7 +521,6 @@ function renderOrders() {
     if (entries.length === 0) { div.innerHTML = '<div class="empty-state"><div class="e-icon">📬</div>No orders here</div>'; return; }
     let i = Object.keys(allOrders).length;
     let html = '';
-    // show newest first
     entries.reverse().forEach(([key, o]) => {
         const status = o.status || 'new';
         const statusClass = status === 'delivered' ? 'status-delivered' : status === 'pickup' ? 'status-pickup' : 'status-new';
@@ -478,7 +528,7 @@ function renderOrders() {
         const cardClass = status === 'delivered' ? 'order-card delivered' : status === 'pickup' ? 'order-card pickup' : 'order-card';
         const actionBtns = status === 'new'
             ? `<button class="btn-deliver" onclick="updateOrderStatus('${key}','delivered')">✅ Mark Delivered</button><button class="btn-pickup" onclick="updateOrderStatus('${key}','pickup')">🟡 Pickup Done</button>`
-            : `<button class="btn-done">${statusLabel}</button>`;
+            : `<button class="btn-done">${statusLabel} at ${o.completedAt || '---'}</button>`;
         html += `<div class="${cardClass}"><div class="order-header"><span class="order-id">#ORD-${String(i--).padStart(4,'0')}</span><span class="status-badge ${statusClass}">${statusLabel}</span></div><div class="order-item-chip">🛒 ${o.itemName}</div><div class="order-info"><div class="order-field"><div class="lbl">Customer</div><div class="val">👤 ${o.customerName}</div></div><div class="order-field"><div class="lbl">Date & Time</div><div class="val">📅 ${o.date} ${o.time||''}</div></div><div class="order-field" style="grid-column:1/-1"><div class="lbl">Address</div><div class="val">📍 ${o.address}</div></div></div><div class="order-actions">${actionBtns}</div></div>`;
     });
     div.innerHTML = html;
