@@ -548,10 +548,34 @@ function renderOrders() {
                 <span class="order-item-chip">🛒 ${o.itemName}</span>${dtypeChip}
             </div>
             <div class="order-info">
-                <div class="order-field"><div class="lbl">Customer</div><div class="val">👤 ${o.customerName}</div></div>
-                <div class="order-field"><div class="lbl">Requested Date & Time</div><div class="val">📅 ${o.date} ${o.time||''}</div></div>
-                <div class="order-field" style="grid-column:1/-1"><div class="lbl">Address</div><div class="val">📍 ${o.address}</div></div>
-            </div>
+    <div class="order-field">
+        <div class="lbl">Customer</div>
+        <div class="val">👤 ${o.customerName}</div>
+        
+    </div>
+
+    <div class="order-field">
+        <div class="lbl">Requested Date & Time</div>
+        <div class="val">
+            📅 ${o.date} 
+            <br> 
+            <span style="color: var(--accent); font-weight: 700; margin-left: 22px;">
+                🕒 ${o.time || 'No Time'}
+            </span>
+        </div>
+    </div>
+
+    <div class="order-field" style="grid-column:1/-1">
+        <div class="lbl">Address</div>
+        <div class="val">📍 ${o.address}</div>
+    </div>
+    
+</div>
+<div class="val" style="color: var(--blue); font-weight: 600; margin-left: 0px;
+margin-top :5px;
+font-size: 13px;">
+            📞 ${o.customerPhone || 'No Number'}
+        </div>
             ${stampHTML}
             <div class="order-actions">${actionBtns}</div>
         </div>`;
